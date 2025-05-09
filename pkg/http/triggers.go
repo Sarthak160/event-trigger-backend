@@ -40,6 +40,8 @@ func (es *TriggerService) TestTrigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	es.logger.Debug("testing trigger", zap.String("name", trigger.Name))
+
 	callBackFunc, err := es.createHttpJob(trigger)
 
 	if err != nil {
