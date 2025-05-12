@@ -38,6 +38,7 @@ func (cs *CronScheduler) AddJob(jobName string, schedule string, job func()) err
 		return err
 	}
 
+	
 	cs.jobs[jobName] = entryID
 	return nil
 }
