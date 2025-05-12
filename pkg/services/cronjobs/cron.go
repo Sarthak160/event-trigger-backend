@@ -30,6 +30,7 @@ func (cs *CronScheduler) AddJob(jobName string, schedule string, job func()) err
 	if existingID, exists := cs.jobs[jobName]; exists {
 		cs.cron.Remove(existingID)
 	}
+	
 
 	cs.logger.Debug("adding job", zap.String("name", jobName), zap.String("schedule", schedule))
 
