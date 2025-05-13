@@ -29,6 +29,8 @@ func NewEventsService(logger *zap.Logger, eventsCollection *mongo.Collection, re
 func (es *EventsService) StoreEventLogs(ctx context.Context, triggerName string, eventLogs models.Events) error {
 	key := createRandomKey(triggerName)
 
+
+	
 	err := es.redisClient.Set(ctx, key, eventLogs, 2*time.Hour).Err()
 	if err != nil {
 		es.logger.Error("error storing event logs", zap.Error(err))
