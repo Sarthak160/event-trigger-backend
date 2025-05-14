@@ -39,7 +39,7 @@ func (es *TriggerService) TestTrigger(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	fmt.Println("trigger", trigger)
 	callBackFunc, err := es.createHttpJob(trigger)
 
 	if err != nil {

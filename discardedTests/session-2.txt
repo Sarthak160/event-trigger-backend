@@ -1,0 +1,1271 @@
+Iteration-1
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+    "strings"
+    "net/http/httptest"
+    "github.com/stretchr/testify/mock"
+    cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+    httpMocks "eventtrigger-backend/mocks/pkg/http"
+)
+
+Test Implementation:
+func TestTestTrigger_InvalidJSON_001(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockEventsSvc := new(httpMocks.EventsService)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        eventsSvc:           mockEventsSvc,
+    }
+
+    req, err := http.NewRequest(http.MethodPost, "/test-trigger", io.NopCloser(strings.NewReader("{invalid-json")))
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.TestTrigger(w, req)
+
+    assert.Equal(t, http.StatusBadRequest, w.Code)
+    assert.Contains(t, w.Body.String(), "invalid character")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:9:2: package eventtrigger-backend/mocks/pkg/http is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/http)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+    "encoding/json"
+    "fmt"
+    "strings"
+    "net/http/httptest"
+    "github.com/stretchr/testify/mock"
+    cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+    httpMocks "eventtrigger-backend/mocks/pkg/http"
+)
+
+Test Implementation:
+func TestTestTrigger_CreateHttpJobError_002(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockEventsSvc := new(httpMocks.EventsService)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        eventsSvc:           mockEventsSvc,
+    }
+
+    trigger := models.Trigger{Name: "test-trigger", Schedule: "* * * * *"}
+    reqBody, err := json.Marshal(trigger)
+    require.NoError(t, err)
+
+    req, err := http.NewRequest(http.MethodPost, "/test-trigger", io.NopCloser(strings.NewReader(string(reqBody))))
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.createHttpJob = func(trigger models.Trigger) (func(), error) {
+        return nil, fmt.Errorf("mock error")
+    }
+
+    ts.TestTrigger(w, req)
+
+    assert.Equal(t, http.StatusInternalServerError, w.Code)
+    assert.Contains(t, w.Body.String(), "mock error")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:10:2: package eventtrigger-backend/mocks/pkg/http is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/http)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+    "strings"
+    "net/http/httptest"
+    "github.com/stretchr/testify/mock"
+    cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+    httpMocks "eventtrigger-backend/mocks/pkg/http"
+    mongoMocks "eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo"
+)
+
+Test Implementation:
+func TestCreateTrigger_InvalidJSON_003(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockEventsSvc := new(httpMocks.EventsService)
+    mockTriggersCollection := new(mongoMocks.Collection)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        eventsSvc:           mockEventsSvc,
+        triggersCollection:  mockTriggersCollection,
+    }
+
+    req, err := http.NewRequest(http.MethodPost, "/create-trigger", io.NopCloser(strings.NewReader("{invalid-json")))
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.CreateTrigger(w, req)
+
+    assert.Equal(t, http.StatusBadRequest, w.Code)
+    assert.Contains(t, w.Body.String(), "invalid character")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:9:2: package eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+    "fmt"
+    "net/http/httptest"
+    "github.com/stretchr/testify/mock"
+    cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+    mongoMocks "eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo"
+    "gopkg.in/mgo.v2/bson"
+)
+
+Test Implementation:
+func TestDeleteTrigger_TriggerNotFound_004(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockTriggersCollection := new(mongoMocks.Collection)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        triggersCollection:  mockTriggersCollection,
+    }
+
+    mockTriggersCollection.On("DeleteOne", mock.Anything, bson.M{"name": "nonexistent-trigger"}).Return(nil, fmt.Errorf("trigger not found"))
+
+    req, err := http.NewRequest(http.MethodDelete, "/delete-trigger/nonexistent-trigger", nil)
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.DeleteTrigger(w, req)
+
+    assert.Equal(t, http.StatusInternalServerError, w.Code)
+    assert.Contains(t, w.Body.String(), "trigger not found")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:8:2: package eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+    "fmt"
+    "net/http/httptest"
+    "github.com/stretchr/testify/mock"
+    mongoMocks "eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo"
+    "gopkg.in/mgo.v2/bson"
+)
+
+Test Implementation:
+func TestListTriggers_FindError_005(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockTriggersCollection := new(mongoMocks.Collection)
+    ts := &TriggerService{
+        logger:              logger,
+        triggersCollection:  mockTriggersCollection,
+    }
+
+    mockTriggersCollection.On("Find", mock.Anything, bson.M{}).Return(nil, fmt.Errorf("database error"))
+
+    req, err := http.NewRequest(http.MethodGet, "/list-triggers", nil)
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.ListTriggers(w, req)
+
+    assert.Equal(t, http.StatusInternalServerError, w.Code)
+    assert.Contains(t, w.Body.String(), "database error")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:8:2: package eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo)
+
+-------------------------------------------------
+
+Iteration-2
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+  "net/http"
+  "net/http/httptest"
+  "strings"
+  "github.com/stretchr/testify/assert"
+  "github.com/stretchr/testify/require"
+  cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+  httpMocks "eventtrigger-backend/mocks/pkg/http"
+  "go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestTestTrigger_InvalidJSON_001(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockEventsSvc := new(httpMocks.EventsService)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        eventsSvc:           mockEventsSvc,
+    }
+
+    req, err := http.NewRequest(http.MethodPost, "/test-trigger", io.NopCloser(strings.NewReader("{invalid-json")))
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.TestTrigger(w, req)
+
+    assert.Equal(t, http.StatusBadRequest, w.Code)
+    assert.Contains(t, w.Body.String(), "invalid character")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:9:2: package eventtrigger-backend/mocks/pkg/http is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/http)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+  "encoding/json"
+  "fmt"
+  "net/http"
+  "net/http/httptest"
+  "strings"
+  "github.com/stretchr/testify/assert"
+  "github.com/stretchr/testify/require"
+  cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+  httpMocks "eventtrigger-backend/mocks/pkg/http"
+  "go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestTestTrigger_CreateHttpJobError_002(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockEventsSvc := new(httpMocks.EventsService)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        eventsSvc:           mockEventsSvc,
+    }
+
+    trigger := models.Trigger{Name: "test-trigger", Schedule: "* * * * *"}
+    reqBody, err := json.Marshal(trigger)
+    require.NoError(t, err)
+
+    req, err := http.NewRequest(http.MethodPost, "/test-trigger", io.NopCloser(strings.NewReader(string(reqBody))))
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.createHttpJob = func(trigger models.Trigger) (func(), error) {
+        return nil, fmt.Errorf("mock error")
+    }
+
+    ts.TestTrigger(w, req)
+
+    assert.Equal(t, http.StatusInternalServerError, w.Code)
+    assert.Contains(t, w.Body.String(), "mock error")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:10:2: package eventtrigger-backend/mocks/pkg/http is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/http)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+  "net/http"
+  "net/http/httptest"
+  "strings"
+  "github.com/stretchr/testify/assert"
+  "github.com/stretchr/testify/require"
+  cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+  httpMocks "eventtrigger-backend/mocks/pkg/http"
+  mongoMocks "eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo"
+  "go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestCreateTrigger_InvalidJSON_003(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockEventsSvc := new(httpMocks.EventsService)
+    mockTriggersCollection := new(mongoMocks.Collection)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        eventsSvc:           mockEventsSvc,
+        triggersCollection:  mockTriggersCollection,
+    }
+
+    req, err := http.NewRequest(http.MethodPost, "/create-trigger", io.NopCloser(strings.NewReader("{invalid-json")))
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.CreateTrigger(w, req)
+
+    assert.Equal(t, http.StatusBadRequest, w.Code)
+    assert.Contains(t, w.Body.String(), "invalid character")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:9:2: package eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+  "fmt"
+  "net/http"
+  "net/http/httptest"
+  "github.com/stretchr/testify/assert"
+  "github.com/stretchr/testify/require"
+  cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+  mongoMocks "eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo"
+  "gopkg.in/mgo.v2/bson"
+  "go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestDeleteTrigger_TriggerNotFound_004(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.CronScheduler)
+    mockTriggersCollection := new(mongoMocks.Collection)
+    ts := &TriggerService{
+        logger:              logger,
+        cronJobSchedulerSvc: mockCronScheduler,
+        triggersCollection:  mockTriggersCollection,
+    }
+
+    mockTriggersCollection.On("DeleteOne", mock.Anything, bson.M{"name": "nonexistent-trigger"}).Return(nil, fmt.Errorf("trigger not found"))
+
+    req, err := http.NewRequest(http.MethodDelete, "/delete-trigger/nonexistent-trigger", nil)
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.DeleteTrigger(w, req)
+
+    assert.Equal(t, http.StatusInternalServerError, w.Code)
+    assert.Contains(t, w.Body.String(), "trigger not found")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:8:2: package eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+  "fmt"
+  "net/http"
+  "net/http/httptest"
+  "github.com/stretchr/testify/assert"
+  "github.com/stretchr/testify/require"
+  mongoMocks "eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo"
+  "gopkg.in/mgo.v2/bson"
+  "go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestListTriggers_FindError_005(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockTriggersCollection := new(mongoMocks.Collection)
+    ts := &TriggerService{
+        logger:              logger,
+        triggersCollection:  mockTriggersCollection,
+    }
+
+    mockTriggersCollection.On("Find", mock.Anything, bson.M{}).Return(nil, fmt.Errorf("database error"))
+
+    req, err := http.NewRequest(http.MethodGet, "/list-triggers", nil)
+    require.NoError(t, err)
+
+    w := httptest.NewRecorder()
+
+    ts.ListTriggers(w, req)
+
+    assert.Equal(t, http.StatusInternalServerError, w.Code)
+    assert.Contains(t, w.Body.String(), "database error")
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:8:2: package eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/go.mongodb.org/mongo-driver/mongo)
+
+-------------------------------------------------
+
+Iteration-3
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"eventtrigger-backend/pkg/models"
+	cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs" // Mock for cronjobs.Scheduler interface
+	httpMocks "eventtrigger-backend/mocks/pkg/http" // Mock for http.EventStorer interface (assuming EventsService implements EventStorer)
+	
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestNewTriggerService_Success_101(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockTriggersCollection := &mongo.Collection{}
+    mockCronScheduler := new(cronjobsMocks.Scheduler)
+    mockEventsSvc := new(httpMocks.EventStorer) // Assuming EventStorer is the interface name for EventsService
+
+    service := NewTriggerService(logger, mockTriggersCollection, mockCronScheduler, mockEventsSvc)
+
+    assert.NotNil(t, service)
+    assert.Equal(t, logger, service.logger)
+    assert.Equal(t, mockTriggersCollection, service.triggersCollection)
+    assert.Equal(t, mockCronScheduler, service.cronJobSchedulerSvc)
+    assert.Equal(t, mockEventsSvc, service.eventsSvc)
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:8:2: package eventtrigger-backend/mocks/pkg/http is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/http)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Test Implementation:
+func TestTestTrigger_InvalidJSON_201
+
+Error Message:
+pkg/http/triggers_test.go:59:37: expected '(', found newline
+-------------------------------------------------
+
+Iteration-4
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs" // Corrected mock import path
+	httpMocks "eventtrigger-backend/mocks/pkg/http"                 // Corrected mock import path
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+)
+
+Required Library Installation
+go get github.com/stretchr/testify/assert
+go get github.com/stretchr/testify/require
+go get github.com/stretchr/testify/mock
+go get go.mongodb.org/mongo-driver/mongo
+go get go.mongodb.org/mongo-driver/mongo/integration/mtest
+go get go.uber.org/zap
+go get github.com/go-chi/chi
+
+Test Implementation:
+func TestNewTriggerService_Success_301(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockTriggersCollection := &mongo.Collection{}
+    mockCronScheduler := new(cronjobsMocks.Scheduler) // Corrected mock import
+    mockEventsSvc := new(httpMocks.EventsService)     // Corrected mock import
+
+    service := NewTriggerService(logger, mockTriggersCollection, mockCronScheduler, mockEventsSvc)
+
+    assert.NotNil(t, service)
+    assert.Equal(t, logger, service.logger)
+    assert.Equal(t, mockTriggersCollection, service.triggersCollection)
+    assert.Equal(t, mockCronScheduler, service.cronJobSchedulerSvc)
+    assert.Equal(t, mockEventsSvc, service.eventsSvc)
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:8:2: package eventtrigger-backend/mocks/pkg/http is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/http)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestTestTrigger_CreateHttpJobError_402(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    // Intentionally cause createHttpJob to fail by providing an invalid URL
+    trigger := models.Trigger{
+        Name:       "test-trigger",
+        Endpoint:   "http://[::1]:namedport", // Invalid URL
+        Schedule:   "@every 1s",
+        MethodType: http.MethodGet,
+    }
+    service := NewTriggerService(logger, nil, nil, nil)
+
+    triggerJSON, _ := json.Marshal(trigger)
+    req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(triggerJSON))
+    rr := httptest.NewRecorder()
+
+    service.TestTrigger(rr, req)
+
+    assert.Equal(t, http.StatusInternalServerError, rr.Code)
+    assert.Contains(t, rr.Body.String(), "invalid URL")
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:13:2: models redeclared in this block
+	pkg/http/triggers_test.go:4:2: other declaration of models
+pkg/http/triggers_test.go:13:2: "eventtrigger-backend/pkg/models" imported and not used
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestTestTrigger_Success_403(t *testing.T) {
+    logger := zaptest.NewLogger(t)
+    mockCronScheduler := new(cronjobsMocks.Scheduler)
+
+    service := NewTriggerService(logger, nil, mockCronScheduler, nil)
+
+    trigger := models.Trigger{
+        Name:       "test-trigger-success",
+        Endpoint:   "http://example.com",
+        Schedule:   "@every 1s",
+        MethodType: http.MethodGet,
+        Payload:    json.RawMessage(`{}`),
+    }
+
+    mockCronScheduler.On("AddJob", trigger.Name, trigger.Schedule, mock.AnythingOfType("func()")).Return(nil)
+    mockCronScheduler.On("RemoveJob", trigger.Name).Return()
+
+    triggerJSON, _ := json.Marshal(trigger)
+    req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(triggerJSON))
+    rr := httptest.NewRecorder()
+
+    service.TestTrigger(rr, req)
+
+    assert.Equal(t, http.StatusOK, rr.Code)
+    assert.Equal(t, "triggered registered for testing", rr.Body.String())
+    mockCronScheduler.AssertExpectations(t)
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:13:2: package eventtrigger-backend/mocks/pkg/services/cronjobs is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/services/cronjobs)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestCreateTrigger_MongoInsertError_502(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("insert error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+
+        trigger := models.Trigger{
+            Name:       "test-trigger-mongo-fail",
+            Endpoint:   "http://example.com",
+            Schedule:   "@every 1s",
+            MethodType: http.MethodGet,
+            Payload:    json.RawMessage(`{}`),
+        }
+        triggerJSON, _ := json.Marshal(trigger)
+
+        mt.AddMockResponses(mtest.CreateWriteErrorsResponse(mtest.WriteError{
+            Index:   0,
+            Code:    11000,
+            Message: "duplicate key error",
+        }))
+
+        req := httptest.NewRequest(http.MethodPost, "/triggers", bytes.NewReader(triggerJSON))
+        rr := httptest.NewRecorder()
+
+        service.CreateTrigger(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "write command error") // MongoDB driver error message
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:13:2: models redeclared in this block
+	pkg/http/triggers_test.go:4:2: other declaration of models
+pkg/http/triggers_test.go:13:2: "eventtrigger-backend/pkg/models" imported and not used
+pkg/http/triggers_test.go:101:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestCreateTrigger_CreateHttpJobError_503(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("create http job error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+
+        trigger := models.Trigger{
+            Name:       "test-trigger-job-fail",
+            Endpoint:   "http://[::1]:namedport", // Invalid URL
+            Schedule:   "@every 1s",
+            MethodType: http.MethodGet,
+            Payload:    json.RawMessage(`{}`),
+        }
+        triggerJSON, _ := json.Marshal(trigger)
+
+        mt.AddMockResponses(mtest.CreateSuccessResponse()) // Mock successful InsertOne
+
+        req := httptest.NewRequest(http.MethodPost, "/triggers", bytes.NewReader(triggerJSON))
+        rr := httptest.NewRecorder()
+
+        service.CreateTrigger(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "invalid URL")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:13:2: models redeclared in this block
+	pkg/http/triggers_test.go:4:2: other declaration of models
+pkg/http/triggers_test.go:13:2: "eventtrigger-backend/pkg/models" imported and not used
+pkg/http/triggers_test.go:101:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"bytes"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestCreateTrigger_Success_504(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("success", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        mockCronScheduler := new(cronjobsMocks.Scheduler)
+        service := NewTriggerService(logger, mt.Coll, mockCronScheduler, nil)
+
+        trigger := models.Trigger{
+            Name:       "test-trigger-create-success",
+            Endpoint:   "http://example.com",
+            Schedule:   "@every 1s",
+            MethodType: http.MethodGet,
+            Payload:    json.RawMessage(`{}`),
+        }
+        triggerJSON, _ := json.Marshal(trigger)
+
+        mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "insertedID", Value: "some-id"}))
+        mockCronScheduler.On("AddJob", trigger.Name, trigger.Schedule, mock.AnythingOfType("func()")).Return(nil)
+
+        req := httptest.NewRequest(http.MethodPost, "/triggers", bytes.NewReader(triggerJSON))
+        rr := httptest.NewRecorder()
+
+        service.CreateTrigger(rr, req)
+
+        assert.Equal(t, http.StatusCreated, rr.Code)
+        assert.Equal(t, "trigger created", rr.Body.String())
+        mockCronScheduler.AssertExpectations(t)
+    })
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:13:2: package eventtrigger-backend/mocks/pkg/services/cronjobs is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/services/cronjobs)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestDeleteTrigger_MongoDeleteError_601(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("delete error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+        eventName := "test-event-delete-fail"
+
+        mt.AddMockResponses(mtest.CreateWriteErrorsResponse(mtest.WriteError{
+            Index:   0,
+            Code:    12345, // Some error code
+            Message: "delete failed",
+        }))
+
+        req := httptest.NewRequest(http.MethodDelete, "/triggers/"+eventName, nil)
+        rctx := chi.NewRouteContext()
+        rctx.URLParams.Add("name", eventName)
+        req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+        rr := httptest.NewRecorder()
+
+        service.DeleteTrigger(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "write command error")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:100:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"context"
+	cronjobsMocks "eventtrigger-backend/mocks/pkg/services/cronjobs"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestDeleteTrigger_Success_602(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("success", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        mockCronScheduler := new(cronjobsMocks.Scheduler)
+        service := NewTriggerService(logger, mt.Coll, mockCronScheduler, nil)
+        eventName := "test-event-delete-success"
+
+        mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}, bson.E{Key: "ok", Value: 1})) // Mock successful DeleteOne
+        mockCronScheduler.On("RemoveJob", eventName).Return()
+
+        req := httptest.NewRequest(http.MethodDelete, "/triggers/"+eventName, nil)
+        rctx := chi.NewRouteContext()
+        rctx.URLParams.Add("name", eventName)
+        req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+        rr := httptest.NewRecorder()
+
+        service.DeleteTrigger(rr, req)
+
+        assert.Equal(t, http.StatusOK, rr.Code)
+        assert.Equal(t, "event deleted", rr.Body.String())
+        mockCronScheduler.AssertExpectations(t)
+    })
+}
+
+
+Error Message:
+# eventtrigger-backend/pkg/http
+pkg/http/triggers_test.go:12:2: package eventtrigger-backend/mocks/pkg/services/cronjobs is not in std (/opt/homebrew/Cellar/go/1.24.0/libexec/src/eventtrigger-backend/mocks/pkg/services/cronjobs)
+
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestListTriggers_MongoFindError_701(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("find error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+
+        // Simulate a command error for Find
+        mt.AddMockResponses(mtest.CreateCommandErrorResponse(mtest.CommandError{
+            Code:    123,
+            Message: "find command failed",
+            Name:    "CommandFailed",
+        }))
+
+        req := httptest.NewRequest(http.MethodGet, "/triggers", nil)
+        rr := httptest.NewRecorder()
+
+        service.ListTriggers(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "find command failed")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:97:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestListTriggers_MongoCursorAllError_702(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("cursor all error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+
+        // Mock a Find that returns a cursor, but the cursor.All will fail
+        // This is tricky to simulate directly with mtest for `cursor.All` error.
+        // We can simulate it by returning a malformed document that causes Decode to fail within All.
+        // Or, more directly, we can return a cursor that's immediately exhausted or has an error.
+        // For this test, let's assume the cursor itself signals an error during iteration.
+        // A more robust way would be to return a specific error from `cursor.Err()` if mtest allowed that.
+        // Since mtest focuses on network responses, we'll simulate a Find that returns an error *after* the cursor is obtained.
+        // This specific scenario (cursor.All failing independently of Decode) is hard to mock with mtest alone.
+        // We will mock it as if the initial Find returned a cursor that immediately errored.
+        // For a true cursor.All error, one might need a more complex mock or to rely on integration tests.
+        // However, we can test the error handling path if `cursor.All` returns an error.
+        // Let's assume `Find` succeeds, but `cursor.All` fails.
+        // Since `cursor.All`'s error is often a `Decode` error, let's return an invalid BSON document.
+
+        findResponse := mtest.CreateCursorResponse(1, "db.coll", mtest.FirstBatch, bson.D{{Key: "_id", Value: "123"}, {Key: "name", Value: 12345}}) // name should be string
+        // Then an empty batch to close the cursor
+        killCursors := mtest.CreateCursorResponse(0, "db.coll", mtest.NextBatch)
+        mt.AddMockResponses(findResponse, killCursors)
+
+
+        req := httptest.NewRequest(http.MethodGet, "/triggers", nil)
+        rr := httptest.NewRecorder()
+
+        service.ListTriggers(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        // The error message will depend on how BSON decoding fails.
+        assert.Contains(t, rr.Body.String(), "error listing triggers")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:98:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestListTriggers_JSONMarshalError_703(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("json marshal error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+
+        // This trigger setup will cause json.Marshal to fail because json.RawMessage contains invalid JSON.
+        triggerWithInvalidPayload := models.Trigger{
+            Name: "test-marshal-fail", Endpoint: "http://example.com", Schedule: "@every 1s", MethodType: "GET",
+            Payload: json.RawMessage("chan"), // This will cause Marshal to fail
+        }
+
+        docBytes, _ := bson.Marshal(triggerWithInvalidPayload)
+        var doc bson.D
+        _ = bson.Unmarshal(docBytes, &doc)
+
+
+        first := mtest.CreateCursorResponse(1, "db.coll", mtest.FirstBatch, doc)
+        second := mtest.CreateCursorResponse(0, "db.coll", mtest.NextBatch) // End cursor
+        mt.AddMockResponses(first, second)
+
+        req := httptest.NewRequest(http.MethodGet, "/triggers", nil)
+        rr := httptest.NewRecorder()
+
+        service.ListTriggers(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "json: error calling MarshalJSON for type json.RawMessage: invalid character 'c' looking for beginning of value")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:12:2: models redeclared in this block
+	pkg/http/triggers_test.go:4:2: other declaration of models
+pkg/http/triggers_test.go:12:2: "eventtrigger-backend/pkg/models" imported and not used
+pkg/http/triggers_test.go:104:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestListTriggers_Success_704(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("success", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+
+        triggers := []models.Trigger{
+            {Name: "t1", Endpoint: "e1", Schedule: "s1", MethodType: "GET", Payload: json.RawMessage(`{"key":"val1"}`)},
+            {Name: "t2", Endpoint: "e2", Schedule: "s2", MethodType: "POST", Payload: json.RawMessage(`{"key":"val2"}`)},
+        }
+
+        var docs []bson.D
+        for _, tr := range triggers {
+            docBytes, _ := bson.Marshal(tr)
+            var doc bson.D
+            _ = bson.Unmarshal(docBytes, &doc)
+            docs = append(docs, doc)
+        }
+
+        firstBatch := mtest.CreateCursorResponse(1, "db.coll", mtest.FirstBatch, docs[0])
+        nextBatch := mtest.CreateCursorResponse(1, "db.coll", mtest.NextBatch, docs[1])
+        killCursors := mtest.CreateCursorResponse(0, "db.coll", mtest.NextBatch) // Important: end the cursor
+        mt.AddMockResponses(firstBatch, nextBatch, killCursors)
+
+        req := httptest.NewRequest(http.MethodGet, "/triggers", nil)
+        rr := httptest.NewRecorder()
+
+        service.ListTriggers(rr, req)
+
+        assert.Equal(t, http.StatusOK, rr.Code)
+
+        var respTriggers []models.Trigger
+        err := json.Unmarshal(rr.Body.Bytes(), &respTriggers)
+        require.NoError(t, err)
+        assert.Equal(t, triggers, respTriggers)
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:12:2: models redeclared in this block
+	pkg/http/triggers_test.go:4:2: other declaration of models
+pkg/http/triggers_test.go:12:2: "eventtrigger-backend/pkg/models" imported and not used
+pkg/http/triggers_test.go:101:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestGetTrigger_MongoFindOneError_801(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("find one error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+        eventName := "non-existent-event"
+
+        mt.AddMockResponses(mtest.CreateCommandErrorResponse(mtest.CommandError{
+            Code:    mtest.NoSuchDocErrorCode, // Or any other error code, mongo.ErrNoDocuments is checked in code
+            Message: "mongo: no documents in result",
+        }))
+        // For FindOne, no document found is an error from Decode or Err() on SingleResult
+        // So we return an empty batch, which causes Decode to return mongo.ErrNoDocuments
+        mt.AddMockResponses(mtest.CreateCursorResponse(0, "db.coll", mtest.FirstBatch))
+
+
+        req := httptest.NewRequest(http.MethodGet, "/triggers/"+eventName, nil)
+        rctx := chi.NewRouteContext()
+        rctx.URLParams.Add("name", eventName)
+        req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+        rr := httptest.NewRecorder()
+
+        service.GetTrigger(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "mongo: no documents in result")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:100:11: mt.Close undefined (type *mtest.T has no field or method Close)
+pkg/http/triggers_test.go:108:19: undefined: mtest.NoSuchDocErrorCode
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Import Statements:
+import (
+	"context"
+	"encoding/json"
+	models "eventtrigger-backend/pkg/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap/zaptest"
+)
+
+Test Implementation:
+func TestGetTrigger_JSONMarshalError_802(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    defer mt.Close()
+
+    mt.Run("json marshal error", func(mt *mtest.T) {
+        logger := zaptest.NewLogger(t)
+        service := NewTriggerService(logger, mt.Coll, nil, nil)
+        eventName := "test-marshal-fail-get"
+
+        // This trigger setup will cause json.Marshal to fail.
+        triggerWithInvalidPayload := models.Trigger{
+            Name: eventName, Endpoint: "http://example.com", Schedule: "@every 1s", MethodType: "GET",
+            Payload: json.RawMessage("chan"), // Invalid JSON for RawMessage to marshal
+        }
+        docBytes, _ := bson.Marshal(triggerWithInvalidPayload)
+        var doc bson.D
+        _ = bson.Unmarshal(docBytes, &doc)
+
+        mt.AddMockResponses(mtest.CreateCursorResponse(1, "db.coll", mtest.FirstBatch, doc))
+
+        req := httptest.NewRequest(http.MethodGet, "/triggers/"+eventName, nil)
+        rctx := chi.NewRouteContext()
+        rctx.URLParams.Add("name", eventName)
+        req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+        rr := httptest.NewRecorder()
+
+        service.GetTrigger(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "json: error calling MarshalJSON for type json.RawMessage: invalid character 'c' looking for beginning of value")
+    })
+}
+
+
+Error Message:
+pkg/http/triggers_test.go:13:2: models redeclared in this block
+	pkg/http/triggers_test.go:4:2: other declaration of models
+pkg/http/triggers_test.go:13:2: "eventtrigger-backend/pkg/models" imported and not used
+pkg/http/triggers_test.go:103:11: mt.Close undefined (type *mtest.T has no field or method Close)
+-------------------------------------------------
+
+--------------------Test Case--------------------
+Test Implementation:
+
+
+Error Message:
+pkg/http/triggers_test.go:95:1: expected declaration, found '}'
+-------------------------------------------------
+

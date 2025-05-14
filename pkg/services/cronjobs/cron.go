@@ -26,7 +26,7 @@ func NewCronScheduler(logger *zap.Logger) *CronScheduler {
 func (cs *CronScheduler) AddJob(jobName string, schedule string, job func()) error {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
-
+	fmt.Println("Adding job", jobName, "with schedule", schedule)
 	if existingID, exists := cs.jobs[jobName]; exists {
 		cs.cron.Remove(existingID)
 	}
